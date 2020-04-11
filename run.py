@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import pygame.midi as midi
+import time
 
 
 class UsingMidiDevices():
@@ -18,15 +19,45 @@ class UsingMidiDevices():
 			isOutput = (info[3] == 1)
 			isInput = (info[2] == 1)
 			if isOutput and "USB" in name: self.outputs.append((d, name))
-			if isInput and "SPD-SX MIDI" in name: self.inputs.append((d, name))
+			if isInput and "USB" in name: self.inputs.append((d, name))
 				
 		print("inputs:", self.inputs)
 		print("outputs:", self.outputs)
 		
+	def forInput(self):
+		return self.inputs[0][0] if len(self.inputs) > 0 else None
+
+	def forOutput(self):
+		return self.outputs[0][0] if len(self.outputs) > 0 else None
+
 	def __del__(self):
 		midi.quit()
 		print("exiting")
 
 
+class MidiIo():
+	def __init__(self, forInput, forOutput):
+		self.receiver = midi.Input(forInput)
+		self.player = midi.Output(forOutput, latency = 0)
+
+	def __del__(self):
+		self.player.close()
+		self.receiver.close()
+		del self.player
+		del self.receiver
+
 devs = UsingMidiDevices()
+io = MidiIo(devs.forInput(), devs.forOutput())
+
+
+received = 0
+while received < 10:
+	if io.receiver.poll():
+		e = io.receiver.read(1)
+		io.player.write(e)
+		print(e)
+		received += 1
+
+
+del io
 del devs
