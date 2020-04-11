@@ -23,6 +23,9 @@ class UsingMidiDevices():
 				
 		print("inputs:", self.inputs)
 		print("outputs:", self.outputs)
+		if len(self.inputs) == 0 or len(self.outputs) == 0:
+			print("need both input and output USB devices")
+			exit()
 		
 	def forInput(self):
 		return self.inputs[0][0] if len(self.inputs) > 0 else None
