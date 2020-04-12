@@ -2,6 +2,8 @@
 
 import pygame.midi as midi
 import time
+import keyboard
+import random
 
 
 class UsingMidiDevices():
@@ -49,42 +51,59 @@ class MidiIo():
 		del self.player
 		del self.receiver
 
-def repeater(player, playedNote, v):
-	note = playedNote
-	player.note_on(note, v, 0)
-	time.sleep(0.1)
-	player.note_off(note, 0, 0)
+from multiprocessing import Value
+import threading
 
-	dv = v / 10.0
-	velocity = v - dv
 
-	while velocity > 0:
-		time.sleep(1.9)
-		player.note_on(note, int(velocity), 0)
+
+class Repeater():
+	def __init__(self, player, playedNote, vel):
+		self.note = Value('i', (random.randint(-1, 2) * 12) + playedNote)
+		self.playedVelocity = vel
+		self.finished = False
+		self.player = player
+		t = threading.Thread(target = self.start, args = (), daemon = True)
+		t.start()
+
+	def start(self):
+		self.player.note_on(self.note.value, self.playedVelocity, 0)
 		time.sleep(0.1)
-		player.note_off(note, 0, 0)
-		velocity -= dv
+		self.player.note_off(self.note.value, 0, 0)
 
+		dv = self.playedVelocity / 10.0
+		velocity = self.playedVelocity - dv
+
+		while velocity > 0:
+			time.sleep(1.9)
+			self.player.note_on(self.note.value, int(velocity), 0)
+			time.sleep(0.1)
+			self.player.note_off(self.note.value, 0, 0)
+			velocity -= dv
+
+		self.finished = True
+
+		del(self)
 
 devs = UsingMidiDevices()
 io = MidiIo(devs.forInput(), devs.forOutput())
 
+shouldStop = threading.Event()
+def stop(e):
+	shouldStop.set()
+	print("stop called")
 
-import threading
+keyboard.on_press_key("q", stop, suppress = True)
+
 received = 0
-while received < 100:
+while not shouldStop.is_set():
 	if io.receiver.poll():
 		e = io.receiver.read(1)
 		msg = e[0][0]
 		note = msg[1]
 		vel = msg[2]
 		if vel > 0:
-			t = threading.Thread(target = repeater, args = (io.player, note, vel), daemon = True)
-			t.start()
+			Repeater(io.player, note, vel)
 			received += 1
-			print("latest", msg, "of", received)
-
-time.sleep(20)
 
 del io
 del devs
