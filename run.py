@@ -146,5 +146,8 @@ while not shouldStop.is_set():
 			else:
 				Repeater(io.player, note, vel, key.scale)
 
+for r in Repeater.repeaters[:]:
+	del(r)
+
 del io
 del devs
