@@ -53,14 +53,16 @@ class MidiIo():
 
 from multiprocessing import Value
 import threading
-
+from scales.scales import *
+		
 
 class Repeater():
 	repeaters = []
 
-	def __init__(self, player, playedNote, vel):
+	def __init__(self, player, playedNote, vel, currentScale):
+		self.playedNote = playedNote
 		Repeater.repeaters.append(self)
-		self.note = Value('i', (random.randint(-1, 2) * 12) + playedNote)
+		self.note = Value('i', (random.randint(-1, 2) * 12) + currentScale.noteFrom(self.playedNote))
 		self.playedVelocity = vel
 		self.finished = False
 		self.player = player
@@ -68,14 +70,15 @@ class Repeater():
 		t.start()
 
 	def __del__(self):
+		self.player.note_off(self.note.value, 0, 0)
 		Repeater.repeaters.remove(self)
-
-	def setNote(self, setTo):
+		
+	def _setNote(self, setTo):
 		with self.note.get_lock():
 			self.note.value = setTo
 
-	def currentNote(self):
-		return self.note.value
+	def transpose(self, scale):
+		self._setNote(scale.noteFrom(self.playedNote))
 
 	def playOne(self, velocity):
 		note = self.note.value
@@ -108,10 +111,27 @@ def stop(e):
 
 keyboard.on_press_key("q", stop, suppress = True)
 
-def transpose():
-	t = random.randint(-4, 5)
-	for r in Repeater.repeaters:
-		r.setNote(r.currentNote() + t)
+
+class Key():
+	def __init__(self):
+		self.lastMode = None
+		self.setScale("C", Modes.any())
+		
+	def setScale(self, tonic, mode):
+		print("using", tonic, mode[0])
+		self.scale = Scale(8, tonic, mode[1])
+		
+	def transpose(self):
+		m = Modes.any()
+		if m[0] == self.lastMode:
+			self.transpose()
+		
+		self.setScale("C", m)
+		self.lastMode = m[0]
+		for r in Repeater.repeaters:
+			r.transpose(self.scale)
+			
+key = Key()
 
 
 while not shouldStop.is_set():
@@ -121,10 +141,10 @@ while not shouldStop.is_set():
 		note = msg[1]
 		vel = msg[2]
 		if vel > 0:
-			if note == 0:
-				transpose()
+			if note == 8:
+				key.transpose()
 			else:
-				Repeater(io.player, note, vel)
+				Repeater(io.player, note, vel, key.scale)
 
 del io
 del devs
