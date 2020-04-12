@@ -55,9 +55,11 @@ from multiprocessing import Value
 import threading
 
 
-
 class Repeater():
+	repeaters = []
+
 	def __init__(self, player, playedNote, vel):
+		Repeater.repeaters.append(self)
 		self.note = Value('i', (random.randint(-1, 2) * 12) + playedNote)
 		self.playedVelocity = vel
 		self.finished = False
@@ -65,19 +67,31 @@ class Repeater():
 		t = threading.Thread(target = self.start, args = (), daemon = True)
 		t.start()
 
-	def start(self):
-		self.player.note_on(self.note.value, self.playedVelocity, 0)
+	def __del__(self):
+		Repeater.repeaters.remove(self)
+
+	def setNote(self, setTo):
+		with self.note.get_lock():
+			self.note.value = setTo
+
+	def currentNote(self):
+		return self.note.value
+
+	def playOne(self, velocity):
+		note = self.note.value
+		self.player.note_on(note, velocity, 0)
 		time.sleep(0.1)
-		self.player.note_off(self.note.value, 0, 0)
+		self.player.note_off(note, 0, 0)
+
+	def start(self):
+		self.playOne(self.playedVelocity)
 
 		dv = self.playedVelocity / 10.0
 		velocity = self.playedVelocity - dv
 
 		while velocity > 0:
 			time.sleep(1.9)
-			self.player.note_on(self.note.value, int(velocity), 0)
-			time.sleep(0.1)
-			self.player.note_off(self.note.value, 0, 0)
+			self.playOne(int(velocity))
 			velocity -= dv
 
 		self.finished = True
@@ -94,7 +108,12 @@ def stop(e):
 
 keyboard.on_press_key("q", stop, suppress = True)
 
-received = 0
+def transpose():
+	t = random.randint(-4, 5)
+	for r in Repeater.repeaters:
+		r.setNote(r.currentNote() + t)
+
+
 while not shouldStop.is_set():
 	if io.receiver.poll():
 		e = io.receiver.read(1)
@@ -102,8 +121,10 @@ while not shouldStop.is_set():
 		note = msg[1]
 		vel = msg[2]
 		if vel > 0:
-			Repeater(io.player, note, vel)
-			received += 1
+			if note == 0:
+				transpose()
+			else:
+				Repeater(io.player, note, vel)
 
 del io
 del devs
