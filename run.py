@@ -7,8 +7,6 @@ import random
 
 from multiprocessing import Value
 import threading
-from scales.scales import *
-		
 
 class Repeater():
 	repeaters = []
@@ -55,13 +53,25 @@ class Repeater():
 
 		del(self)
 
-import sys
+
 import os
-sys.path.append(os.path.dirname(os.getcwd()))
+import sys
+def checkImport(lib):
+    parentDir = os.path.dirname(os.getcwd())
+    sys.path.append(parentDir)
+    if not os.path.exists(os.path.join(parentDir, lib)):
+        print("%s library not found." % lib)
+        print("please clone github.com/andrewbooker/%s.git into %s" % (lib, parentDir))
+        exit()
+
+checkImport("mediautils")
+checkImport("compositionutils")
 from mediautils.usbdevices import UsbMidiDevices, MidiIn, MidiOut
 devs = UsbMidiDevices()
 ioOut = MidiOut(devs)
 ioIn = MidiIn(devs)
+
+from compositionutils.scale import *
 
 shouldStop = threading.Event()
 def stop(e):
