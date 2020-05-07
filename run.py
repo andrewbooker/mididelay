@@ -65,7 +65,7 @@ def checkImport(lib):
 
 checkImport("mediautils")
 checkImport("compositionutils")
-from mediautils.usbdevices import UsbMidiDevices, MidiIn, MidiOut
+from mediautils.mididevices import UsbMidiDevices, MidiIn, MidiOut
 devs = UsbMidiDevices()
 ioOut = MidiOut(devs)
 ioIn = MidiIn(devs)
