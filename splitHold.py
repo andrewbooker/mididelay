@@ -21,6 +21,7 @@ MAIN_CHANNEL = 0
 HOLD_CHANNEL = 1
 
 import random
+import time
 
 class Splitter():
     def __init__(self, reader, player):
@@ -41,7 +42,7 @@ class Splitter():
             self._stopCurrentHeld()
             self.player.note_on(n, 81, HOLD_CHANNEL)
             self.played = []
-            self.nextLen = random.randint(2, 12)
+            self.nextLen = random.randint(5, 12)
 
         self.played.append(n)
     
@@ -53,10 +54,11 @@ class Splitter():
                 note = msg[1]
                 vel = msg[2]
                 if vel > 0:
-                    self.player.note_on(note, vel, MAIN_CHANNEL)
-                    self._newNote(note)
-                else:
-                    self.player.note_off(note, 0, MAIN_CHANNEL)
+                    n = note + (12 * random.randint(0, 2))
+                    self.player.note_on(n, vel, MAIN_CHANNEL)
+                    self._newNote(note + (12 * random.randint(0, 3)))
+                    time.sleep(0.05)
+                    self.player.note_off(n, 0, MAIN_CHANNEL)
 
 splitter = Splitter(ioIn, ioOut)
 
