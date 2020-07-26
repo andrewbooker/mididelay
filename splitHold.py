@@ -19,29 +19,38 @@ ioOut = MidiOut(devs)
 ioIn = MidiIn(devs)
 
 
+class Splitter():
+    def __init__(self, reader, player):
+        self.reader = reader.io
+        self.player = player.io
+    
+    def start(self, shouldStop):
+        while not shouldStop.is_set():
+            if ioIn.io.poll():
+                e = self.reader.read(1)
+                msg = e[0][0]
+                note = msg[1]
+                vel = msg[2]
+                if vel > 0:
+                    self.player.note_on(note, vel, 0)
+                else:
+                    self.player.note_off(note, 0, 0)
+
+splitter = Splitter(ioIn, ioOut)
+
 import threading
-import readchar
-def waitForStop(shouldStop):
-    c = readchar.readchar()
-    if c == "q":
-        shouldStop.set()
 
 shouldStop = threading.Event()
 threads = []
-threads.append(threading.Thread(target=waitForStop, args=(shouldStop,), daemon=True))
+threads.append(threading.Thread(target=splitter.start, args=(shouldStop,), daemon=True))
 [t.start() for t in threads]
 
-import time
+import readchar
+print("Started. Press 'q' to exit")
 while not shouldStop.is_set():
-    if ioIn.io.poll():
-        e = ioIn.io.read(1)
-        msg = e[0][0]
-        note = msg[1]
-        vel = msg[2]
-        if vel > 0:
-            ioOut.io.note_on(note, vel, 0)
-        else:
-            ioOut.io.note_off(note, 0, 0)
+    c = readchar.readchar()
+    if c == "q":
+        shouldStop.set()
 
 [t.join() for t in threads]
 del ioOut
